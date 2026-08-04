@@ -502,8 +502,9 @@
     })
     .subscribe();
 
-  window.addEventListener("error", (e) => setSyncStatus("JS error: " + e.message, true));
-  window.addEventListener("unhandledrejection", (e) => setSyncStatus("Promise error: " + (e.reason && e.reason.message ? e.reason.message : e.reason), true));
+  const initTimeout = setTimeout(() => {
+    setSyncStatus("Still connecting after 8s — check your internet connection or reload the page.", true);
+  }, 8000);
 
   (async function init() {
     setSyncStatus("Connecting…");
@@ -511,8 +512,10 @@
       await fetchStaffList();
       renderStaffDropdown();
       await refreshChecklist();
+      clearTimeout(initTimeout);
       setSyncStatus("Synced ✓ " + new Date().toLocaleTimeString());
     } catch (e) {
+      clearTimeout(initTimeout);
       setSyncStatus("Init failed: " + e.message, true);
     }
   })();

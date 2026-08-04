@@ -274,6 +274,23 @@
 </div>
 
 <script>
+  window.addEventListener("error", (e) => {
+    const el = document.getElementById("syncLine");
+    if (el) { el.textContent = "JS error: " + e.message; el.classList.add("error"); }
+  }, true);
+  window.addEventListener("unhandledrejection", (e) => {
+    const el = document.getElementById("syncLine");
+    const msg = e.reason && e.reason.message ? e.reason.message : e.reason;
+    if (el) { el.textContent = "Promise error: " + msg; el.classList.add("error"); }
+  });
+
+  if (!window.supabase) {
+    document.getElementById("syncLine").textContent =
+      "Could not load Supabase library (network/CDN blocked). Try reloading the page.";
+    document.getElementById("syncLine").classList.add("error");
+    throw new Error("Supabase library failed to load");
+  }
+
   const SUPABASE_URL = "https://nzvhojncuvxlzdpqmyul.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_TUv3g_YeD_Iulolca-eEIA_WNcKMgrL";
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

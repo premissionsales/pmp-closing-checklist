@@ -205,6 +205,26 @@
     margin-bottom: 16px;
   }
   .done-banner.show { display: block; }
+  .submit-wrap {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .submit-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 10px;
+  }
+  .submit-btn:hover:not(:disabled) { background: var(--accent-dark); }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--muted); }
+  .submit-note {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 6px;
+  }
   .actions {
     display: flex;
     justify-content: center;
@@ -265,6 +285,11 @@
   </div>
 
   <div class="card" id="checklist"></div>
+
+  <div class="submit-wrap">
+    <button class="submit-btn" id="submitBtn" disabled>Submit checklist</button>
+    <div class="submit-note" id="submitNote">Check off every item to enable submission</div>
+  </div>
 
   <div class="actions">
     <button id="resetBtn">Reset checklist</button>
@@ -472,7 +497,35 @@
     document.getElementById("progressCount").textContent = `${doneCount} / ${items.length}`;
     document.getElementById("progressBar").style.width = `${(doneCount / items.length) * 100}%`;
     document.getElementById("doneBanner").classList.toggle("show", doneCount === items.length);
+
+    const submitBtn = document.getElementById("submitBtn");
+    const submitNote = document.getElementById("submitNote");
+    const allDone = doneCount === items.length;
+    submitBtn.disabled = !allDone;
+    submitNote.textContent = allDone
+      ? "Ready to notify the team on Telegram"
+      : "Check off every item to enable submission";
   }
+
+  document.getElementById("submitBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("submitBtn");
+    const note = document.getElementById("submitNote");
+    btn.disabled = true;
+    note.textContent = "Sending notification…";
+    try {
+      const { data, error } = await sb.functions.invoke("notify-telegram", {
+        body: { staffName: getSelectedStaff(), taskDate: todayKey() }
+      });
+      if (error) throw error;
+      if (data && data.error) throw new Error(data.error);
+      note.textContent = data && data.note === "already submitted"
+        ? "Already submitted for today — team was notified earlier."
+        : "✅ Team notified on Telegram!";
+    } catch (e) {
+      note.textContent = "Could not notify Telegram: " + e.message;
+      btn.disabled = false;
+    }
+  });
 
   async function refreshChecklist() {
     currentState = await fetchState();

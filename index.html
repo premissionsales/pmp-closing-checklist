@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Premission Power — Daily Closing Checklist</title>
 <link rel="icon" type="image/png" href="PMP Logo.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg: #dcecd8;
@@ -48,8 +49,15 @@
     text-align: center;
     font-size: 0.95rem;
     color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .sync-line {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--muted);
     margin-bottom: 16px;
   }
+  .sync-line.error { color: #b0362e; }
   .staff-wrap {
     background: var(--card);
     border: 1px solid var(--border);
@@ -212,6 +220,7 @@
     cursor: pointer;
   }
   button:hover { background: var(--border); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
   footer {
     text-align: center;
     color: var(--muted);
@@ -228,6 +237,7 @@
     <p>Complete every item before locking up</p>
   </header>
   <div class="date-line" id="dateLine"></div>
+  <div class="sync-line" id="syncLine">Connecting…</div>
 
   <div class="staff-wrap">
     <label for="staffSelect">Person in charge</label>
@@ -260,10 +270,14 @@
     <button id="resetBtn">Reset checklist</button>
   </div>
 
-  <footer>Checklist resets automatically each day • Saved on this device</footer>
+  <footer>Shared live checklist • Synced via Supabase</footer>
 </div>
 
 <script>
+  const SUPABASE_URL = "https://nzvhojncuvxlzdpqmyul.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_TUv3g_YeD_Iulolca-eEIA_WNcKMgrL";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   const items = [
     { id: "shutter", icon: "🚪", label: "Shutter door closed & locked" },
     { id: "lights", icon: "💡", label: "All lights turned off" },
@@ -276,73 +290,109 @@
   ];
 
   const todayKey = () => new Date().toISOString().slice(0, 10);
-  const STAFF_LIST_KEY = "paintShopStaffList";
   const STAFF_SELECTED_KEY = "paintShopStaffSelected_" + todayKey();
-  const defaultStaff = ["Unassigned"];
 
-  function loadStaffList() {
-    const raw = localStorage.getItem(STAFF_LIST_KEY);
-    return raw ? JSON.parse(raw) : defaultStaff.slice();
-  }
-
-  function saveStaffList(list) {
-    localStorage.setItem(STAFF_LIST_KEY, JSON.stringify(list));
-  }
+  let staffList = ["Unassigned"];
+  let currentState = {};
 
   function getSelectedStaff() {
-    return localStorage.getItem(STAFF_SELECTED_KEY) || loadStaffList()[0];
+    return localStorage.getItem(STAFF_SELECTED_KEY) || staffList[0];
   }
-
   function setSelectedStaff(name) {
     localStorage.setItem(STAFF_SELECTED_KEY, name);
   }
 
-  function storageKey() {
-    return "paintShopClosing_" + todayKey() + "_" + getSelectedStaff();
+  function setSyncStatus(text, isError) {
+    const el = document.getElementById("syncLine");
+    el.textContent = text;
+    el.classList.toggle("error", !!isError);
   }
 
-  function loadState() {
-    const raw = localStorage.getItem(storageKey());
-    return raw ? JSON.parse(raw) : {};
+  async function fetchStaffList() {
+    const { data, error } = await supabase.from("staff").select("name").order("name");
+    if (error) { setSyncStatus("Could not load staff list: " + error.message, true); return; }
+    staffList = data.length ? data.map(r => r.name) : ["Unassigned"];
   }
 
-  function saveState(state) {
-    localStorage.setItem(storageKey(), JSON.stringify(state));
+  async function addStaff(name) {
+    const { error } = await supabase.from("staff").insert({ name });
+    if (error) { setSyncStatus("Could not add staff: " + error.message, true); return false; }
+    return true;
+  }
+
+  async function removeStaff(name) {
+    const { error } = await supabase.from("staff").delete().eq("name", name);
+    if (error) { setSyncStatus("Could not remove staff: " + error.message, true); return false; }
+    return true;
+  }
+
+  async function fetchState() {
+    const { data, error } = await supabase
+      .from("checklist_status")
+      .select("task_id, done")
+      .eq("task_date", todayKey())
+      .eq("staff_name", getSelectedStaff());
+    if (error) { setSyncStatus("Could not load checklist: " + error.message, true); return {}; }
+    const state = {};
+    data.forEach(row => { state[row.task_id] = row.done; });
+    return state;
+  }
+
+  async function setTaskDone(taskId, done) {
+    const { error } = await supabase.from("checklist_status").upsert({
+      task_date: todayKey(),
+      staff_name: getSelectedStaff(),
+      task_id: taskId,
+      done: done,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "task_date,staff_name,task_id" });
+    if (error) setSyncStatus("Could not save: " + error.message, true);
+    else setSyncStatus("Synced ✓ " + new Date().toLocaleTimeString());
+  }
+
+  async function resetToday() {
+    const { error } = await supabase
+      .from("checklist_status")
+      .delete()
+      .eq("task_date", todayKey())
+      .eq("staff_name", getSelectedStaff());
+    if (error) setSyncStatus("Could not reset: " + error.message, true);
+    else setSyncStatus("Synced ✓ " + new Date().toLocaleTimeString());
   }
 
   function renderStaffDropdown() {
     const select = document.getElementById("staffSelect");
-    const list = loadStaffList();
     const selected = getSelectedStaff();
-    select.innerHTML = list.map(name =>
+    select.innerHTML = staffList.map(name =>
       `<option value="${name}" ${name === selected ? "selected" : ""}>${name}</option>`
     ).join("");
   }
 
-  document.getElementById("staffSelect").addEventListener("change", (e) => {
+  document.getElementById("staffSelect").addEventListener("change", async (e) => {
     setSelectedStaff(e.target.value);
-    render();
+    await refreshChecklist();
   });
 
   function renderStaffPanel() {
-    const list = loadStaffList();
     const container = document.getElementById("staffListContainer");
-    container.innerHTML = list.map(name => `
+    container.innerHTML = staffList.map(name => `
       <div class="staff-list-item">
         <span>${name}</span>
         <button class="remove-btn" data-name="${name}">Remove</button>
       </div>
     `).join("");
     container.querySelectorAll(".remove-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const name = btn.getAttribute("data-name");
-        let updated = loadStaffList().filter(n => n !== name);
-        if (updated.length === 0) updated = ["Unassigned"];
-        saveStaffList(updated);
-        if (getSelectedStaff() === name) setSelectedStaff(updated[0]);
-        renderStaffDropdown();
-        renderStaffPanel();
-        render();
+        btn.disabled = true;
+        const ok = await removeStaff(name);
+        if (ok) {
+          await fetchStaffList();
+          if (getSelectedStaff() === name) setSelectedStaff(staffList[0]);
+          renderStaffDropdown();
+          renderStaffPanel();
+          await refreshChecklist();
+        }
       });
     });
   }
@@ -353,18 +403,20 @@
     if (panel.classList.contains("show")) renderStaffPanel();
   });
 
-  function addStaffFromInput() {
+  async function addStaffFromInput() {
     const input = document.getElementById("newStaffInput");
     const name = input.value.trim();
-    if (!name) return;
-    const list = loadStaffList();
-    if (!list.includes(name)) {
-      list.push(name);
-      saveStaffList(list);
+    if (!name || staffList.includes(name)) return;
+    const btn = document.getElementById("addStaffBtn");
+    btn.disabled = true;
+    const ok = await addStaff(name);
+    btn.disabled = false;
+    if (ok) {
+      await fetchStaffList();
       setSelectedStaff(name);
       renderStaffDropdown();
       renderStaffPanel();
-      render();
+      await refreshChecklist();
     }
     input.value = "";
     input.focus();
@@ -375,13 +427,12 @@
     if (e.key === "Enter") addStaffFromInput();
   });
 
-  function render() {
-    const state = loadState();
+  function renderChecklist() {
     const listEl = document.getElementById("checklist");
     listEl.innerHTML = "";
 
     items.forEach(item => {
-      const checked = !!state[item.id];
+      const checked = !!currentState[item.id];
       const row = document.createElement("div");
       row.className = "item" + (checked ? " checked" : "");
       row.innerHTML = `
@@ -390,32 +441,64 @@
         <label for="chk_${item.id}">${item.label}</label>
       `;
       const checkbox = row.querySelector("input");
-      checkbox.addEventListener("change", () => {
-        const s = loadState();
-        s[item.id] = checkbox.checked;
-        saveState(s);
-        render();
+      checkbox.addEventListener("change", async () => {
+        currentState[item.id] = checkbox.checked;
+        renderChecklist();
+        await setTaskDone(item.id, checkbox.checked);
       });
       listEl.appendChild(row);
     });
 
-    const doneCount = items.filter(i => state[i.id]).length;
+    const doneCount = items.filter(i => currentState[i.id]).length;
     document.getElementById("progressCount").textContent = `${doneCount} / ${items.length}`;
     document.getElementById("progressBar").style.width = `${(doneCount / items.length) * 100}%`;
     document.getElementById("doneBanner").classList.toggle("show", doneCount === items.length);
+  }
+
+  async function refreshChecklist() {
+    currentState = await fetchState();
+    renderChecklist();
   }
 
   document.getElementById("dateLine").textContent = new Date().toLocaleDateString(undefined, {
     weekday: "long", year: "numeric", month: "long", day: "numeric"
   });
 
-  document.getElementById("resetBtn").addEventListener("click", () => {
-    localStorage.removeItem(storageKey());
-    render();
+  document.getElementById("resetBtn").addEventListener("click", async () => {
+    await resetToday();
+    await refreshChecklist();
   });
 
-  renderStaffDropdown();
-  render();
+  // Live sync: refresh if another device changes today's data for the selected staff
+  supabase
+    .channel("checklist-changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "checklist_status" }, (payload) => {
+      const row = payload.new && Object.keys(payload.new).length ? payload.new : payload.old;
+      if (row && row.task_date === todayKey() && row.staff_name === getSelectedStaff()) {
+        refreshChecklist();
+      }
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "staff" }, async () => {
+      await fetchStaffList();
+      renderStaffDropdown();
+      if (document.getElementById("staffPanel").classList.contains("show")) renderStaffPanel();
+    })
+    .subscribe();
+
+  window.addEventListener("error", (e) => setSyncStatus("JS error: " + e.message, true));
+  window.addEventListener("unhandledrejection", (e) => setSyncStatus("Promise error: " + (e.reason && e.reason.message ? e.reason.message : e.reason), true));
+
+  (async function init() {
+    setSyncStatus("Connecting…");
+    try {
+      await fetchStaffList();
+      renderStaffDropdown();
+      await refreshChecklist();
+      setSyncStatus("Synced ✓ " + new Date().toLocaleTimeString());
+    } catch (e) {
+      setSyncStatus("Init failed: " + e.message, true);
+    }
+  })();
 </script>
 </body>
 </html>

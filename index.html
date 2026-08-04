@@ -326,7 +326,9 @@
   }
 
   async function fetchStaffList() {
+    setSyncStatus("Step 1: querying staff table…");
     const { data, error } = await supabase.from("staff").select("name").order("name");
+    setSyncStatus("Step 2: staff query returned");
     if (error) { setSyncStatus("Could not load staff list: " + error.message, true); return; }
     staffList = data.length ? data.map(r => r.name) : ["Unassigned"];
   }

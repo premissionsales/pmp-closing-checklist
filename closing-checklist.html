@@ -293,7 +293,7 @@
 
   const SUPABASE_URL = "https://nzvhojncuvxlzdpqmyul.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_TUv3g_YeD_Iulolca-eEIA_WNcKMgrL";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
   });
 
@@ -328,25 +328,25 @@
   }
 
   async function fetchStaffList() {
-    const { data, error } = await supabase.from("staff").select("name").order("name");
+    const { data, error } = await sb.from("staff").select("name").order("name");
     if (error) { setSyncStatus("Could not load staff list: " + error.message, true); return; }
     staffList = data.length ? data.map(r => r.name) : ["Unassigned"];
   }
 
   async function addStaff(name) {
-    const { error } = await supabase.from("staff").insert({ name });
+    const { error } = await sb.from("staff").insert({ name });
     if (error) { setSyncStatus("Could not add staff: " + error.message, true); return false; }
     return true;
   }
 
   async function removeStaff(name) {
-    const { error } = await supabase.from("staff").delete().eq("name", name);
+    const { error } = await sb.from("staff").delete().eq("name", name);
     if (error) { setSyncStatus("Could not remove staff: " + error.message, true); return false; }
     return true;
   }
 
   async function fetchState() {
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("checklist_status")
       .select("task_id, done")
       .eq("task_date", todayKey())
@@ -358,7 +358,7 @@
   }
 
   async function setTaskDone(taskId, done) {
-    const { error } = await supabase.from("checklist_status").upsert({
+    const { error } = await sb.from("checklist_status").upsert({
       task_date: todayKey(),
       staff_name: getSelectedStaff(),
       task_id: taskId,
@@ -370,7 +370,7 @@
   }
 
   async function resetToday() {
-    const { error } = await supabase
+    const { error } = await sb
       .from("checklist_status")
       .delete()
       .eq("task_date", todayKey())
@@ -489,7 +489,7 @@
   });
 
   // Live sync: refresh if another device changes today's data for the selected staff
-  supabase
+  sb
     .channel("checklist-changes")
     .on("postgres_changes", { event: "*", schema: "public", table: "checklist_status" }, (payload) => {
       const row = payload.new && Object.keys(payload.new).length ? payload.new : payload.old;

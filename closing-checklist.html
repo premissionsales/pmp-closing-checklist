@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premission Power — Daily Closing Checklist</title>
+<link rel="icon" type="image/png" href="PMP Logo.png">
+<style>
+  :root {
+    --bg: #dcecd8;
+    --card: #f3faf0;
+    --accent: #237032;
+    --accent-dark: #143d1e;
+    --text: #132316;
+    --muted: #4a6650;
+    --done: #2f9e44;
+    --border: #b3d4ac;
+  }
+  body { background: linear-gradient(180deg, #143d1e 0%, #7bb87f 180px, #dcecd8 340px); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header img.logo {
+    height: 70px;
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    color: var(--accent-dark);
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .date-line {
+    text-align: center;
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .staff-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .staff-wrap label {
+    font-size: 0.9rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .staff-wrap select {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    font-size: 1rem;
+  }
+  .staff-wrap button {
+    white-space: nowrap;
+  }
+  .staff-panel {
+    display: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .staff-panel.show { display: block; }
+  .staff-panel h3 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    color: var(--accent-dark);
+  }
+  .staff-add-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .staff-add-row input {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 1rem;
+  }
+  .staff-add-row button {
+    background: var(--accent);
+    color: white;
+    border: none;
+  }
+  .staff-add-row button:hover { background: var(--accent-dark); }
+  .staff-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .staff-list-item:last-child { border-bottom: none; }
+  .staff-list-item .remove-btn {
+    border: none;
+    background: none;
+    color: #b0362e;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .staff-list-item .remove-btn:hover { text-decoration: underline; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 16px;
+    margin-bottom: 16px;
+  }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .item:last-child { border-bottom: none; }
+  .item input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .item label {
+    flex: 1;
+    font-size: 1.05rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .item.checked label {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+  .icon { font-size: 1.3rem; width: 26px; text-align: center; }
+  .progress-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .progress-bar-bg {
+    background: var(--border);
+    border-radius: 8px;
+    height: 14px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-bar-fill {
+    background: var(--accent);
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  .progress-text {
+    font-size: 0.9rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+  .done-banner {
+    display: none;
+    background: var(--done);
+    color: white;
+    text-align: center;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .done-banner.show { display: block; }
+  .actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  button {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  button:hover { background: var(--border); }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="PMP Logo.png" alt="Premission Power logo" class="logo">
+    <h1>Premission Power — Closing Checklist</h1>
+    <p>Complete every item before locking up</p>
+  </header>
+  <div class="date-line" id="dateLine"></div>
+
+  <div class="staff-wrap">
+    <label for="staffSelect">Person in charge</label>
+    <select id="staffSelect"></select>
+    <button id="manageStaffBtn">Manage staff</button>
+  </div>
+
+  <div class="staff-panel" id="staffPanel">
+    <h3>Manage staff list</h3>
+    <div class="staff-add-row">
+      <input type="text" id="newStaffInput" placeholder="Add staff name...">
+      <button id="addStaffBtn">Add</button>
+    </div>
+    <div id="staffListContainer"></div>
+  </div>
+
+  <div class="done-banner" id="doneBanner">✅ All done — safe to lock up!</div>
+
+  <div class="progress-wrap">
+    <div class="progress-text">
+      <span>Progress</span>
+      <span id="progressCount">0 / 0</span>
+    </div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+  </div>
+
+  <div class="card" id="checklist"></div>
+
+  <div class="actions">
+    <button id="resetBtn">Reset checklist</button>
+  </div>
+
+  <footer>Checklist resets automatically each day • Saved on this device</footer>
+</div>
+
+<script>
+  const items = [
+    { id: "shutter", icon: "🚪", label: "Shutter door closed & locked" },
+    { id: "lights", icon: "💡", label: "All lights turned off" },
+    { id: "ac", icon: "❄️", label: "Air conditioners turned off" },
+    { id: "fans", icon: "🌀", label: "Fans turned off" },
+    { id: "cashregister", icon: "💰", label: "Cash register closed & secured" },
+    { id: "trash", icon: "🗑️", label: "Trash taken out" },
+    { id: "windows", icon: "🪟", label: "Windows/back door locked" },
+    { id: "alarm", icon: "🚨", label: "Security alarm armed" }
+  ];
+
+  const todayKey = () => new Date().toISOString().slice(0, 10);
+  const STAFF_LIST_KEY = "paintShopStaffList";
+  const STAFF_SELECTED_KEY = "paintShopStaffSelected_" + todayKey();
+  const defaultStaff = ["Unassigned"];
+
+  function loadStaffList() {
+    const raw = localStorage.getItem(STAFF_LIST_KEY);
+    return raw ? JSON.parse(raw) : defaultStaff.slice();
+  }
+
+  function saveStaffList(list) {
+    localStorage.setItem(STAFF_LIST_KEY, JSON.stringify(list));
+  }
+
+  function getSelectedStaff() {
+    return localStorage.getItem(STAFF_SELECTED_KEY) || loadStaffList()[0];
+  }
+
+  function setSelectedStaff(name) {
+    localStorage.setItem(STAFF_SELECTED_KEY, name);
+  }
+
+  function storageKey() {
+    return "paintShopClosing_" + todayKey() + "_" + getSelectedStaff();
+  }
+
+  function loadState() {
+    const raw = localStorage.getItem(storageKey());
+    return raw ? JSON.parse(raw) : {};
+  }
+
+  function saveState(state) {
+    localStorage.setItem(storageKey(), JSON.stringify(state));
+  }
+
+  function renderStaffDropdown() {
+    const select = document.getElementById("staffSelect");
+    const list = loadStaffList();
+    const selected = getSelectedStaff();
+    select.innerHTML = list.map(name =>
+      `<option value="${name}" ${name === selected ? "selected" : ""}>${name}</option>`
+    ).join("");
+  }
+
+  document.getElementById("staffSelect").addEventListener("change", (e) => {
+    setSelectedStaff(e.target.value);
+    render();
+  });
+
+  function renderStaffPanel() {
+    const list = loadStaffList();
+    const container = document.getElementById("staffListContainer");
+    container.innerHTML = list.map(name => `
+      <div class="staff-list-item">
+        <span>${name}</span>
+        <button class="remove-btn" data-name="${name}">Remove</button>
+      </div>
+    `).join("");
+    container.querySelectorAll(".remove-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const name = btn.getAttribute("data-name");
+        let updated = loadStaffList().filter(n => n !== name);
+        if (updated.length === 0) updated = ["Unassigned"];
+        saveStaffList(updated);
+        if (getSelectedStaff() === name) setSelectedStaff(updated[0]);
+        renderStaffDropdown();
+        renderStaffPanel();
+        render();
+      });
+    });
+  }
+
+  document.getElementById("manageStaffBtn").addEventListener("click", () => {
+    const panel = document.getElementById("staffPanel");
+    panel.classList.toggle("show");
+    if (panel.classList.contains("show")) renderStaffPanel();
+  });
+
+  function addStaffFromInput() {
+    const input = document.getElementById("newStaffInput");
+    const name = input.value.trim();
+    if (!name) return;
+    const list = loadStaffList();
+    if (!list.includes(name)) {
+      list.push(name);
+      saveStaffList(list);
+      setSelectedStaff(name);
+      renderStaffDropdown();
+      renderStaffPanel();
+      render();
+    }
+    input.value = "";
+    input.focus();
+  }
+
+  document.getElementById("addStaffBtn").addEventListener("click", addStaffFromInput);
+  document.getElementById("newStaffInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") addStaffFromInput();
+  });
+
+  function render() {
+    const state = loadState();
+    const listEl = document.getElementById("checklist");
+    listEl.innerHTML = "";
+
+    items.forEach(item => {
+      const checked = !!state[item.id];
+      const row = document.createElement("div");
+      row.className = "item" + (checked ? " checked" : "");
+      row.innerHTML = `
+        <span class="icon">${item.icon}</span>
+        <input type="checkbox" id="chk_${item.id}" ${checked ? "checked" : ""}>
+        <label for="chk_${item.id}">${item.label}</label>
+      `;
+      const checkbox = row.querySelector("input");
+      checkbox.addEventListener("change", () => {
+        const s = loadState();
+        s[item.id] = checkbox.checked;
+        saveState(s);
+        render();
+      });
+      listEl.appendChild(row);
+    });
+
+    const doneCount = items.filter(i => state[i.id]).length;
+    document.getElementById("progressCount").textContent = `${doneCount} / ${items.length}`;
+    document.getElementById("progressBar").style.width = `${(doneCount / items.length) * 100}%`;
+    document.getElementById("doneBanner").classList.toggle("show", doneCount === items.length);
+  }
+
+  document.getElementById("dateLine").textContent = new Date().toLocaleDateString(undefined, {
+    weekday: "long", year: "numeric", month: "long", day: "numeric"
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    localStorage.removeItem(storageKey());
+    render();
+  });
+
+  renderStaffDropdown();
+  render();
+</script>
+</body>
+</html>

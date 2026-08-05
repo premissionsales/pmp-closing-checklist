@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const TOTAL_TASKS = 8;
+const TOTAL_TASKS = 9;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

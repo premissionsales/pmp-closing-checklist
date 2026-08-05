@@ -94,6 +94,39 @@
     margin-bottom: 16px;
   }
   .staff-panel.show { display: block; }
+  .history-panel {
+    display: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .history-panel.show { display: block; }
+  .history-panel h3 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    color: var(--accent-dark);
+  }
+  .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .history-table th {
+    text-align: left;
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-table td {
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-table tr:last-child td { border-bottom: none; }
+  .history-empty {
+    color: var(--muted);
+    font-size: 0.85rem;
+    padding: 8px 0;
+  }
   .staff-panel h3 {
     margin: 0 0 10px;
     font-size: 0.95rem;
@@ -263,6 +296,12 @@
     <label for="staffSelect">Person in charge</label>
     <select id="staffSelect"></select>
     <button id="manageStaffBtn">Manage staff</button>
+    <button id="historyBtn">View history</button>
+  </div>
+
+  <div class="history-panel" id="historyPanel">
+    <h3>Submission history</h3>
+    <div id="historyContainer"></div>
   </div>
 
   <div class="staff-panel" id="staffPanel">
@@ -445,6 +484,47 @@
     const panel = document.getElementById("staffPanel");
     panel.classList.toggle("show");
     if (panel.classList.contains("show")) renderStaffPanel();
+  });
+
+  async function fetchHistory() {
+    const { data, error } = await sb
+      .from("daily_submissions")
+      .select("task_date, staff_name, submitted_at")
+      .order("task_date", { ascending: false })
+      .order("submitted_at", { ascending: false })
+      .limit(60);
+    if (error) { setSyncStatus("Could not load history: " + error.message, true); return []; }
+    return data;
+  }
+
+  async function renderHistoryPanel() {
+    const container = document.getElementById("historyContainer");
+    container.innerHTML = "<div class=\"history-empty\">Loading…</div>";
+    const rows = await fetchHistory();
+    if (!rows.length) {
+      container.innerHTML = "<div class=\"history-empty\">No submissions recorded yet.</div>";
+      return;
+    }
+    container.innerHTML = `
+      <table class="history-table">
+        <thead><tr><th>Date</th><th>Completed by</th><th>Time</th></tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${r.task_date}</td>
+              <td>${r.staff_name}</td>
+              <td>${new Date(r.submitted_at).toLocaleTimeString()}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  document.getElementById("historyBtn").addEventListener("click", () => {
+    const panel = document.getElementById("historyPanel");
+    panel.classList.toggle("show");
+    if (panel.classList.contains("show")) renderHistoryPanel();
   });
 
   async function addStaffFromInput() {

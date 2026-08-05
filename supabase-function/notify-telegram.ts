@@ -2,11 +2,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const TOTAL_TASKS = 8;
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     const { staffName, taskDate } = await req.json();
     if (!staffName || !taskDate) {
-      return new Response(JSON.stringify({ error: "Missing staffName or taskDate" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Missing staffName or taskDate" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -26,7 +39,10 @@ Deno.serve(async (req) => {
 
     const doneCount = (rows || []).filter((r) => r.done).length;
     if (doneCount < TOTAL_TASKS) {
-      return new Response(JSON.stringify({ error: "Checklist not fully complete" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Checklist not fully complete" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Record the submission; unique constraint blocks duplicate notifications
@@ -36,7 +52,10 @@ Deno.serve(async (req) => {
 
     if (insertErr) {
       if (insertErr.code === "23505") {
-        return new Response(JSON.stringify({ ok: true, note: "already submitted" }), { status: 200 });
+        return new Response(JSON.stringify({ ok: true, note: "already submitted" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       throw insertErr;
     }
@@ -52,9 +71,12 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
